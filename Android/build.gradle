@@ -151,6 +151,9 @@ android {
             resValue "string", "app_title", "Tower"
             buildConfigField "boolean", "WRITE_LOG_FILE", "false"
             buildConfigField "boolean", "ENABLE_CRASHLYTICS", "true"
+
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
