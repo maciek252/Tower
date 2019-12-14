@@ -22,6 +22,7 @@ import com.o3dr.services.android.lib.drone.attribute.AttributeEvent;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.drone.mission.MissionItemType;
 import com.o3dr.services.android.lib.drone.mission.item.MissionItem;
+import com.o3dr.services.android.lib.drone.mission.item.command.ChangeSpeed;
 import com.o3dr.services.android.lib.drone.mission.item.complex.SplineSurvey;
 import com.o3dr.services.android.lib.drone.mission.item.complex.StructureScanner;
 import com.o3dr.services.android.lib.drone.mission.item.complex.Survey;
@@ -120,6 +121,10 @@ public class MissionDetailFragment extends ApiListenerDialogFragment {
     private final SpinnerSelfSelect.OnSpinnerItemSelectedListener missionItemSpinnerListener = new SpinnerSelfSelect.OnSpinnerItemSelectedListener() {
         @Override
         public void onSpinnerItemSelected(Spinner spinner, int position) {
+            if (position < 0 || position >=  commandAdapter.getCount()) {
+                return;
+            }
+
             MissionItemType selectedType = commandAdapter.getItem(position);
 
             try {
@@ -178,6 +183,10 @@ public class MissionDetailFragment extends ApiListenerDialogFragment {
                                     MissionItem.SpatialItem) {
                                 ((MissionItem.SpatialItem) newItem).setCoordinate(((MissionItem
                                         .SpatialItem) oldItem).getCoordinate());
+                            }
+
+                            if (newItem instanceof ChangeSpeed) {
+                                ((ChangeSpeed) newItem).setSpeed(getApplication().getVehicleSpeed());
                             }
 
                             newItems.add(new MissionItemProxy(mMissionProxy, newItem));
@@ -384,6 +393,10 @@ public class MissionDetailFragment extends ApiListenerDialogFragment {
             //Invalid state. We should not have been able to get here.
             //If the parent activity is listening, it will remove this fragment when the selection is empty.
             mMissionProxy.selection.notifySelectionUpdate();
+
+            //Dismiss this dialog fragment
+            dismiss();
+            return;
         }
 
         if(getResource() == R.layout.fragment_editor_detail_generic) {

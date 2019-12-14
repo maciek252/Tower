@@ -214,7 +214,7 @@ public class ActionBarTelemFragment extends ApiListenerFragment {
             }
         });
 
-        appPrefs = new DroidPlannerPrefs(context);
+        appPrefs = DroidPlannerPrefs.getInstance(context);
     }
 
     private void showTelemBar() {
@@ -408,6 +408,7 @@ public class ActionBarTelemFragment extends ApiListenerFragment {
                     case ReturnToMeState.STATE_WAITING_FOR_VEHICLE_GPS:
                     case ReturnToMeState.STATE_ERROR_UPDATING_HOME:
                         drawableResId = R.drawable.ic_person_red_500_18dp;
+                        update = getString(R.string.empty_content);
                         break;
                 }
             }
@@ -450,7 +451,7 @@ public class ActionBarTelemFragment extends ApiListenerFragment {
             currentView.setText(String.format("C: %2.1f A", droneBattery.getBatteryCurrent()));
 
 
-            update = String.format(Locale.ENGLISH, "%2.1f V", droneBattery.getBatteryVoltage());
+            update = String.format(Locale.ENGLISH, "%2.1fV", droneBattery.getBatteryVoltage());
 
             if (battRemain >= 100) {
                 batteryIcon = R.drawable.ic_battery_circle_8_24dp;

@@ -7,15 +7,24 @@ import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
 
+import com.o3dr.android.client.Drone;
+import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.drone.connection.ConnectionType;
+import com.o3dr.services.android.lib.drone.mission.item.complex.CameraDetail;
+import com.o3dr.services.android.lib.drone.mission.item.complex.Survey;
+import com.o3dr.services.android.lib.drone.mission.item.complex.SurveyDetail;
+import com.o3dr.services.android.lib.drone.property.CameraProxy;
+import com.o3dr.services.android.lib.gcs.follow.FollowType;
 
 import org.droidplanner.android.fragments.widget.TowerWidgets;
 import org.droidplanner.android.fragments.widget.video.WidgetVideoPreferences;
 import org.droidplanner.android.maps.providers.DPMapProvider;
+import org.droidplanner.android.tlog.TLogActivity;
 import org.droidplanner.android.utils.Utils;
 import org.droidplanner.android.utils.unit.systems.UnitSystem;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,6 +38,11 @@ import java.util.Map;
  */
 public class DroidPlannerPrefs {
 
+    /**
+     * Flag to select the header for the main navigation drawer.
+     */
+    public static final boolean ENABLE_DRONESHARE_ACCOUNT = false;
+
     /*
      * Default preference value
      */
@@ -40,6 +54,9 @@ public class DroidPlannerPrefs {
 
     private static final String PREF_KEEP_SCREEN_ON = "pref_keep_screen_bright";
     private static final boolean DEFAULT_KEEP_SCREEN_ON = false;
+
+    public static final String PREF_ENABLE_ZOOM_TO_FIT = "pref_enable_zoom_to_fit";
+    public static final boolean DEFAULT_ENABLE_ZOOM_TO_FIT = true;
 
     public static final String PREF_MAPS_PROVIDERS = "pref_maps_providers_key";
     private static final String DEFAULT_MAPS_PROVIDER = DPMapProvider.DEFAULT_MAP_PROVIDER.name();
@@ -93,6 +110,8 @@ public class DroidPlannerPrefs {
     public static final String PREF_ENABLE_KILL_SWITCH = "pref_enable_kill_switch";
     private static final boolean DEFAULT_ENABLE_KILL_SWITCH = false;
 
+    public static final String PREF_ENABLE_VEHICLE_SPECIFIC_ICONS = "pref_enable_vehicle_specific_icons";
+
     public static final String PREF_ENABLE_UDP_PING = "pref_enable_udp_server_ping";
     private static final boolean DEFAULT_ENABLE_UDP_PING = false;
 
@@ -106,6 +125,8 @@ public class DroidPlannerPrefs {
     private static final double DEFAULT_ALT = 20; // meters
 
     public static final String PREF_APP_VERSION = "pref_version";
+
+    private static final String PREF_APP_VERSION_CODE = "pref_app_version_code";
 
     private static final String PREF_IS_TTS_ENABLED = "pref_enable_tts";
     private static final boolean DEFAULT_TTS_ENABLED = false;
@@ -163,11 +184,42 @@ public class DroidPlannerPrefs {
     public static final String PREF_UVC_VIDEO_ASPECT_RATIO = "pref_uvc_video_aspect_ratio";
     private static final float DEFAULT_UVC_VIDEO_ASPECT_RATIO = 3f / 4f;
 
+    public static final String PREF_WEATHER_INFO = "pref_weather_info";
+
+    public static final String PREF_LAST_KNOWN_FOLLOW_MODE = "pref_last_known_follow_mode";
+    private static final FollowType DEFAULT_FOLLOW_TYPE = FollowType.LEASH;
+
+    // Survey user preferences
+    private static final String PREF_SURVEY_CAMERA_NAME = "pref_survey_camera_name";
+    private static final String PREF_SURVEY_ALTITUDE = "pref_survey_altitude";
+    private static final String PREF_SURVEY_ANGLE = "pref_survey_angle";
+    private static final String PREF_SURVEY_OVERLAP = "pref_survey_overlap";
+    private static final String PREF_SURVEY_SIDELAP = "pref_survey_sidelap";
+    private static final String PREF_SURVEY_LOCK_ORIENTATION = "pref_survey_lock_orientation";
+    private static final String PREF_SURVEY_START_CAMERA_BEFORE_FIRST_WAYPOINT = "pref_survey_start_camera_before_first_waypoint";
+    private static final String PREF_VEHICLE_HISTORY_SESSION_ID = "pref_vehicle_history_session_id";
+    public static final String PREF_PROJECT_CREATOR = "pref_project_creator";
+    public static final String PREF_PROJECT_LEAD_MAINTAINER = "pref_project_lead_maintainer";
+    public static final String PREF_PROJECT_CONTRIBUTORS = "pref_project_contributors";
+
+    public static final String PREF_VEHICLE_DEFAULT_SPEED = "pref_vehicle_default_speed";
+    private static final float DEFAULT_SPEED = 5; //meters per second.
+
     // Public for legacy usage
     public final SharedPreferences prefs;
     private final LocalBroadcastManager lbm;
 
-    public DroidPlannerPrefs(Context context) {
+    private static DroidPlannerPrefs instance;
+
+    public static synchronized DroidPlannerPrefs getInstance(Context context) {
+        if (instance == null) {
+            instance = new DroidPlannerPrefs(context);
+        }
+
+        return instance;
+    }
+
+    private DroidPlannerPrefs(Context context) {
         prefs = PreferenceManager.getDefaultSharedPreferences(context);
         lbm = LocalBroadcastManager.getInstance(context);
     }
@@ -178,6 +230,33 @@ public class DroidPlannerPrefs {
         // return
         // prefs.getBoolean(PREF_LIVE_UPLOAD_ENABLED, DEFAULT_LIVE_UPLOAD_ENABLED);
         return false;
+    }
+
+    /**
+     * Return the last saved app version code
+     * @return
+     */
+    public int getSavedAppVersionCode(){
+        return prefs.getInt(PREF_APP_VERSION_CODE, 0);
+    }
+
+    /**
+     * Update the saved app version code.
+     * @param context Application context
+     */
+    public void updateSavedAppVersionCode(Context context) {
+        int versionCode = Utils.getAppVersionCode(context);
+        if (versionCode != Utils.INVALID_APP_VERSION_CODE) {
+            prefs.edit().putInt(PREF_APP_VERSION_CODE, versionCode).apply();
+        }
+    }
+
+    public void setPrefWeatherInfo(String weatherInfo) {
+        prefs.edit().putString(PREF_WEATHER_INFO, weatherInfo).apply();
+    }
+
+    public String getPrefWeatherInfo() {
+        return prefs.getString(PREF_WEATHER_INFO, "");
     }
 
     public String getDroneshareLogin() {
@@ -231,15 +310,17 @@ public class DroidPlannerPrefs {
         return prefs.getBoolean(PREF_USAGE_STATISTICS, DEFAULT_USAGE_STATISTICS);
     }
 
-    public void setConnectionParameterType(int connectionType) {
+    public void setConnectionParameterType(@ConnectionType.Type int connectionType) {
         prefs.edit().putString(PREF_CONNECTION_TYPE, String.valueOf(connectionType)).apply();
+        lbm.sendBroadcast(new Intent(PREF_CONNECTION_TYPE));
     }
 
     /**
      * @return the selected mavlink connection type.
      */
-    public int getConnectionParameterType() {
-        return Integer.parseInt(prefs.getString(PREF_CONNECTION_TYPE, DEFAULT_CONNECTION_TYPE));
+    public @ConnectionType.Type int getConnectionParameterType() {
+        @ConnectionType.Type int connectionType = Integer.parseInt(prefs.getString(PREF_CONNECTION_TYPE, DEFAULT_CONNECTION_TYPE).trim());
+        return connectionType;
     }
 
     public int getUnitSystemType() {
@@ -247,7 +328,7 @@ public class DroidPlannerPrefs {
         if (unitSystem == null)
             return DEFAULT_UNIT_SYSTEM;
 
-        return Integer.parseInt(unitSystem);
+        return Integer.parseInt(unitSystem.trim());
     }
 
     public void setUsbBaudRate(int baudRate) {
@@ -255,7 +336,7 @@ public class DroidPlannerPrefs {
     }
 
     public int getUsbBaudRate() {
-        return Integer.parseInt(prefs.getString(PREF_USB_BAUD_RATE, DEFAULT_USB_BAUD_RATE));
+        return Integer.parseInt(prefs.getString(PREF_USB_BAUD_RATE, DEFAULT_USB_BAUD_RATE).trim());
     }
 
     public void setTcpServerIp(String serverIp) {
@@ -271,7 +352,7 @@ public class DroidPlannerPrefs {
     }
 
     public int getTcpServerPort() {
-        return Integer.parseInt(prefs.getString(PREF_TCP_SERVER_PORT, DEFAULT_TCP_SERVER_PORT));
+        return Integer.parseInt(prefs.getString(PREF_TCP_SERVER_PORT, DEFAULT_TCP_SERVER_PORT).trim());
     }
 
     public void setUdpServerPort(int serverPort) {
@@ -279,7 +360,7 @@ public class DroidPlannerPrefs {
     }
 
     public int getUdpServerPort() {
-        return Integer.parseInt(prefs.getString(PREF_UDP_SERVER_PORT, DEFAULT_UDP_SERVER_PORT));
+        return Integer.parseInt(prefs.getString(PREF_UDP_SERVER_PORT, DEFAULT_UDP_SERVER_PORT).trim());
     }
 
     public boolean isUdpPingEnabled() {
@@ -291,7 +372,7 @@ public class DroidPlannerPrefs {
     }
 
     public int getUdpPingReceiverPort() {
-        return Integer.parseInt(prefs.getString(PREF_UDP_PING_RECEIVER_PORT, DEFAULT_UDP_SERVER_PORT));
+        return Integer.parseInt(prefs.getString(PREF_UDP_PING_RECEIVER_PORT, DEFAULT_UDP_SERVER_PORT).trim());
     }
 
     public String getBluetoothDeviceName() {
@@ -310,6 +391,7 @@ public class DroidPlannerPrefs {
         final SharedPreferences.Editor editor = prefs.edit();
         editor.putString(PREF_BT_DEVICE_ADDRESS, newAddress)
                 .apply();
+        lbm.sendBroadcast(new Intent(PREF_BT_DEVICE_ADDRESS));
     }
 
     /**
@@ -317,6 +399,13 @@ public class DroidPlannerPrefs {
      */
     public boolean keepScreenOn() {
         return prefs.getBoolean(PREF_KEEP_SCREEN_ON, DEFAULT_KEEP_SCREEN_ON);
+    }
+
+    /**
+     * @return true if zoom to fit is enable
+     */
+    public boolean isZoomToFitEnable(){
+        return prefs.getBoolean(PREF_ENABLE_ZOOM_TO_FIT, DEFAULT_ENABLE_ZOOM_TO_FIT);
     }
 
     /**
@@ -388,7 +477,7 @@ public class DroidPlannerPrefs {
     }
 
     public int getSpokenStatusInterval() {
-        return Integer.parseInt(prefs.getString(PREF_SPEECH_PERIOD, DEFAULT_SPEECH_PERIOD));
+        return Integer.parseInt(prefs.getString(PREF_SPEECH_PERIOD, DEFAULT_SPEECH_PERIOD).trim());
     }
 
     public boolean hasExceededMaxAltitude(double currentAltInMeters) {
@@ -456,7 +545,7 @@ public class DroidPlannerPrefs {
             return defaultValue;
 
         try {
-            final double maxAlt = Double.parseDouble(maxAltValue);
+            final double maxAlt = Double.parseDouble(maxAltValue.trim());
             return maxAlt;
         } catch (Exception e) {
             return defaultValue;
@@ -471,8 +560,8 @@ public class DroidPlannerPrefs {
         prefs.edit().putBoolean(widget.getPrefKey(), enable).apply();
     }
 
-    public boolean isWidgetEnabled(TowerWidgets widget) {
-        return prefs.getBoolean(widget.getPrefKey(), widget.isEnabledByDefault());
+    public boolean isWidgetVisible(TowerWidgets widget) {
+        return prefs.getBoolean(widget.getPrefKey(), widget.isVisibleByDefault());
     }
 
     public boolean isReturnToMeEnabled() {
@@ -512,5 +601,117 @@ public class DroidPlannerPrefs {
 
     public Float getUVCVideoAspectRatio(){
         return prefs.getFloat(PREF_UVC_VIDEO_ASPECT_RATIO, DEFAULT_UVC_VIDEO_ASPECT_RATIO);
+    }
+
+    public void persistSurveyPreferences(Survey survey){
+        if(survey == null || survey.getSurveyDetail() == null)
+            return;
+
+        SurveyDetail surveyDetail = survey.getSurveyDetail();
+
+        SharedPreferences.Editor editor = prefs.edit();
+        // Persist the camera.
+        editor.putString(PREF_SURVEY_CAMERA_NAME, surveyDetail.getCameraDetail().getName());
+
+        // Persist the survey angle.
+        editor.putFloat(PREF_SURVEY_ANGLE, (float) surveyDetail.getAngle());
+
+        // Persist the altitude.
+        editor.putFloat(PREF_SURVEY_ALTITUDE, (float) surveyDetail.getAltitude());
+
+        // Persist the overlap.
+        editor.putFloat(PREF_SURVEY_OVERLAP, (float) surveyDetail.getOverlap());
+
+        // Persist the sidelap.
+        editor.putFloat(PREF_SURVEY_SIDELAP, (float) surveyDetail.getSidelap());
+
+        // Persist the check for starting the camera before the first waypoint.
+        editor.putBoolean(PREF_SURVEY_START_CAMERA_BEFORE_FIRST_WAYPOINT, survey.isStartCameraBeforeFirstWaypoint());
+
+        // Persist the check for locking the copter orientation.
+        editor.putBoolean(PREF_SURVEY_LOCK_ORIENTATION, surveyDetail.getLockOrientation());
+
+        editor.apply();
+    }
+
+    public void loadSurveyPreferences(Drone drone, Survey loadTarget) {
+        if(drone == null || loadTarget == null)
+            return;
+
+        // Load the check for starting the camera before the first waypoint.
+        loadTarget.setStartCameraBeforeFirstWaypoint(prefs.getBoolean(PREF_SURVEY_START_CAMERA_BEFORE_FIRST_WAYPOINT, false));
+
+        SurveyDetail surveyDetail = loadTarget.getSurveyDetail();
+        if(surveyDetail == null){
+            surveyDetail = new SurveyDetail();
+            loadTarget.setSurveyDetail(surveyDetail);
+        }
+
+        // Load the check for locking the copter orientation.
+        surveyDetail.setLockOrientation(prefs.getBoolean(PREF_SURVEY_LOCK_ORIENTATION, false));
+
+        // Load the sidelap.
+        surveyDetail.setSidelap(prefs.getFloat(PREF_SURVEY_SIDELAP, 60));
+
+        // Load the overlap.
+        surveyDetail.setOverlap(prefs.getFloat(PREF_SURVEY_OVERLAP, 50));
+
+        // Load the altitude.
+        surveyDetail.setAltitude(prefs.getFloat(PREF_SURVEY_ALTITUDE, 50));
+
+        // Load the survey angle.
+        surveyDetail.setAngle(prefs.getFloat(PREF_SURVEY_ANGLE, 0));
+
+        // Load the camera name
+        String cameraName = prefs.getString(PREF_SURVEY_CAMERA_NAME, null);
+        if(!TextUtils.isEmpty(cameraName)){
+            CameraProxy camera = drone.getAttribute(AttributeType.CAMERA);
+            if(camera != null) {
+                // Load the available cameras
+                List<CameraDetail> cameraDetails = camera.getAvailableCameraInfos();
+                if(!cameraDetails.isEmpty()){
+                    for(CameraDetail cameraDetail : cameraDetails) {
+                        if (cameraName.equalsIgnoreCase(cameraDetail.getName())){
+                            surveyDetail.setCameraDetail(cameraDetail);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void saveVehicleHistorySessionId(long sessionId) {
+        prefs.edit().putLong(PREF_VEHICLE_HISTORY_SESSION_ID, sessionId).apply();
+    }
+
+    public long getVehicleHistorySessionId(){
+        return prefs.getLong(PREF_VEHICLE_HISTORY_SESSION_ID, TLogActivity.INVALID_SESSION_ID);
+    }
+
+    /**
+     * @return Vehicle default speed in meters per second.
+     */
+    public double getVehicleDefaultSpeed() {
+        return prefs.getFloat(PREF_VEHICLE_DEFAULT_SPEED, DEFAULT_SPEED);
+    }
+
+    public void setVehicleDefaultSpeed(float speedInMetersPerSecond) {
+        prefs.edit().putFloat(PREF_VEHICLE_DEFAULT_SPEED, speedInMetersPerSecond).apply();
+        lbm.sendBroadcast(new Intent(PREF_VEHICLE_DEFAULT_SPEED));
+    }
+
+    /**  default follow mode
+     * @return FollowType
+     */
+    public FollowType getLastKnownFollowType() {
+        String followTypeString = prefs.getString(PREF_LAST_KNOWN_FOLLOW_MODE, DEFAULT_FOLLOW_TYPE.name());
+        FollowType followType = FollowType.valueOf(followTypeString);
+        return (followType != null) ? followType : DEFAULT_FOLLOW_TYPE;
+    }
+
+    public void setLastKnownFollowType(FollowType followType) {
+        String followTypeString = followType.name();
+        prefs.edit().putString(PREF_LAST_KNOWN_FOLLOW_MODE, followTypeString).apply();
     }
 }

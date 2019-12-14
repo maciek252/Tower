@@ -1,6 +1,7 @@
 package org.droidplanner.android.fragments;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -8,6 +9,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.CheckBoxPreference;
@@ -16,43 +18,34 @@ import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
-import android.preference.PreferenceScreen;
 import android.support.v4.content.LocalBroadcastManager;
-import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.google.android.gms.analytics.GoogleAnalytics;
 import com.google.android.gms.analytics.HitBuilders;
 import com.o3dr.android.client.Drone;
-import com.o3dr.android.client.apis.VehicleApi;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEvent;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
-import com.o3dr.services.android.lib.drone.connection.ConnectionType;
-import com.o3dr.services.android.lib.drone.property.State;
 import com.o3dr.services.android.lib.drone.property.Type;
-import com.o3dr.services.android.lib.model.AbstractCommandListener;
 
+import org.beyene.sius.unit.composition.speed.SpeedUnit;
 import org.beyene.sius.unit.length.LengthUnit;
 import org.droidplanner.android.DroidPlannerApp;
 import org.droidplanner.android.R;
 import org.droidplanner.android.activities.helpers.MapPreferencesActivity;
-import org.droidplanner.android.dialogs.ClearBTDialogPreference;
-import org.droidplanner.android.fragments.widget.TowerWidgets;
 import org.droidplanner.android.fragments.widget.WidgetsListPrefFragment;
 import org.droidplanner.android.maps.providers.DPMapProvider;
 import org.droidplanner.android.utils.Utils;
 import org.droidplanner.android.utils.analytics.GAUtils;
-import org.droidplanner.android.utils.file.DirectoryPath;
 import org.droidplanner.android.utils.prefs.DroidPlannerPrefs;
 import org.droidplanner.android.utils.unit.UnitManager;
 import org.droidplanner.android.utils.unit.providers.length.LengthUnitProvider;
+import org.droidplanner.android.utils.unit.providers.speed.SpeedUnitProvider;
 import org.droidplanner.android.utils.unit.systems.UnitSystem;
 
 import java.util.HashSet;
 import java.util.Locale;
-
-import timber.log.Timber;
 
 /**
  * Implements the application settings screen.
@@ -102,7 +95,7 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
     public static final String ACTION_WIDGET_PREFERENCE_UPDATED = PACKAGE_NAME + ".ACTION_WIDGET_PREFERENCE_UPDATED";
     public static final String EXTRA_ADD_WIDGET = "extra_add_widget";
     public static final String EXTRA_WIDGET_PREF_KEY = "extra_widget_pref_key";
-
+    public static final String VEHICLE_SPECIFIC_ICON_PREF_KEY = "vehicle_specific_icon_pref_key";
     private static final IntentFilter intentFilter = new IntentFilter();
 
     static {
@@ -139,6 +132,7 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
 
                 case ACTION_PREF_UNIT_SYSTEM_UPDATE:
                     setupAltitudePreferences();
+                    setupSpeedPreferences();
                     break;
             }
         }
@@ -169,7 +163,7 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
         initSummaryPerPrefs();
 
         final Context context = getActivity().getApplicationContext();
-        dpPrefs = new DroidPlannerPrefs(context);
+        dpPrefs = DroidPlannerPrefs.getInstance(context);
         lbm = LocalBroadcastManager.getInstance(context);
         final SharedPreferences sharedPref = dpPrefs.prefs;
 
@@ -212,42 +206,18 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
         setupWidgetsPreferences();
         setupMapProviders();
         setupPeriodicControls();
-        setupConnectionPreferences();
         setupAdvancedMenu();
         setupUnitSystemPreferences();
-        setupBluetoothDevicePreferences();
         setupImminentGroundCollisionWarningPreference();
         setupMapPreferences();
         setupAltitudePreferences();
+        setupCreditsPage();
+        setupSpeedPreferences();
     }
 
     private void setupWidgetsPreferences(){
         final Preference widgetsPref = findPreference(DroidPlannerPrefs.PREF_TOWER_WIDGETS);
         if(widgetsPref != null){
-            /*final Activity activity = getActivity();
-            final Preference.OnPreferenceChangeListener widgetPrefChangeListener = new Preference.OnPreferenceChangeListener() {
-                @Override
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    final boolean addWidget = (boolean) newValue;
-                    lbm.sendBroadcast(new Intent(ACTION_WIDGET_PREFERENCE_UPDATED)
-                            .putExtra(EXTRA_ADD_WIDGET, addWidget)
-                            .putExtra(EXTRA_WIDGET_PREF_KEY, preference.getKey()));
-                    return true;
-                }
-            };
-
-            final TowerWidgets[] widgets = TowerWidgets.values();
-            for(TowerWidgets widget: widgets){
-                final CheckBoxPreference widgetPref = new CheckBoxPreference(activity);
-                widgetPref.setKey(widget.getPrefKey());
-                widgetPref.setTitle(widget.getLabelResId());
-                widgetPref.setSummary(widget.getDescriptionResId());
-                widgetPref.setChecked(dpPrefs.isWidgetEnabled(widget));
-                widgetPref.setOnPreferenceChangeListener(widgetPrefChangeListener);
-
-                widgetsPref.addPreference(widgetPref);
-            }*/
-
             widgetsPref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
                 @Override
                 public boolean onPreferenceClick(Preference preference) {
@@ -264,7 +234,7 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
 
         final ListPreference mapsProvidersPref = (ListPreference) findPreference(mapsProvidersPrefKey);
         if (mapsProvidersPref != null) {
-            final DPMapProvider[] providers = DPMapProvider.values();
+            final DPMapProvider[] providers = DPMapProvider.getEnabledProviders();
             final int providersCount = providers.length;
 
             final CharSequence[] providersNames = new CharSequence[providersCount];
@@ -280,12 +250,14 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
             mapsProvidersPref.setEntries(providersNames);
             mapsProvidersPref.setEntryValues(providersNamesValues);
             mapsProvidersPref.setValue(defaultProviderName);
+            mapsProvidersPref.setSummary(defaultProviderName.toLowerCase(Locale.ENGLISH).replace('_', ' '));
             mapsProvidersPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
 
                 @Override
                 public boolean onPreferenceChange(Preference preference, Object newValue) {
                     // Update the map provider settings preference.
                     final String mapProviderName = newValue.toString();
+                    mapsProvidersPref.setSummary(mapProviderName.toLowerCase(Locale.ENGLISH).replace('_', ' '));
                     return updateMapSettingsPreference(mapProviderName);
                 }
             });
@@ -312,6 +284,21 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                 @Override
                 public boolean onPreferenceChange(Preference preference, Object newValue) {
                     lbm.sendBroadcast(new Intent(ACTION_ADVANCED_MENU_UPDATED));
+                    return true;
+                }
+            });
+        }
+
+        final CheckBoxPreference vehicleSpecificIcons = (CheckBoxPreference) findPreference(DroidPlannerPrefs.PREF_ENABLE_VEHICLE_SPECIFIC_ICONS);
+        if(vehicleSpecificIcons != null) {
+            vehicleSpecificIcons.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+                @Override
+                public boolean onPreferenceChange(Preference preference, Object newValue) {
+                    boolean showVehicleSpecificIcons = Boolean.valueOf(newValue.toString());
+                    SharedPreferences prefs = getContext().getSharedPreferences("towerPrefsKey", Context.MODE_PRIVATE);
+                    SharedPreferences.Editor editor = prefs.edit();
+                    editor.putBoolean(VEHICLE_SPECIFIC_ICON_PREF_KEY, showVehicleSpecificIcons);
+                    editor.commit();
                     return true;
                 }
             });
@@ -383,42 +370,47 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
         preference.setSummary(summaryResId);
     }
 
-    private void setupConnectionPreferences() {
-        ListPreference connectionTypePref = (ListPreference) findPreference(DroidPlannerPrefs.PREF_CONNECTION_TYPE);
-        if (connectionTypePref != null) {
-            int defaultConnectionType = dpPrefs.getConnectionParameterType();
-            updateConnectionPreferenceSummary(connectionTypePref, defaultConnectionType);
-            connectionTypePref
-                    .setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                        @Override
-                        public boolean onPreferenceChange(Preference preference, Object newValue) {
-                            int connectionType = Integer.parseInt((String) newValue);
-                            updateConnectionPreferenceSummary(preference, connectionType);
-                            return true;
-                        }
-                    });
-        }
-    }
-
-    private void setupBluetoothDevicePreferences(){
-        final ClearBTDialogPreference preference = (ClearBTDialogPreference) findPreference(DroidPlannerPrefs.PREF_BT_DEVICE_ADDRESS);
-        if(preference != null){
-            updateBluetoothDevicePreference(preference, dpPrefs.getBluetoothDeviceAddress());
-            preference.setOnResultListener(new ClearBTDialogPreference.OnResultListener() {
-                @Override
-                public void onResult(boolean result) {
-                    if (result) {
-                        updateBluetoothDevicePreference(preference, dpPrefs.getBluetoothDeviceAddress());
-                    }
-                }
-            });
-        }
-    }
-
     private void setupAltitudePreferences(){
         setupAltitudePreferenceHelper(DroidPlannerPrefs.PREF_ALT_MAX_VALUE, dpPrefs.getMaxAltitude());
         setupAltitudePreferenceHelper(DroidPlannerPrefs.PREF_ALT_MIN_VALUE, dpPrefs.getMinAltitude());
         setupAltitudePreferenceHelper(DroidPlannerPrefs.PREF_ALT_DEFAULT_VALUE, dpPrefs.getDefaultAltitude());
+    }
+
+    private void setupSpeedPreferences() {
+        final SpeedUnitProvider sup = getSpeedUnitProvider();
+
+        final EditTextPreference defaultSpeedPref = (EditTextPreference) findPreference(DroidPlannerPrefs.PREF_VEHICLE_DEFAULT_SPEED);
+        if (defaultSpeedPref != null) {
+            final SpeedUnit defaultValue = sup.boxBaseValueToTarget(dpPrefs.getVehicleDefaultSpeed());
+
+            defaultSpeedPref.setText(String.format(Locale.US, "%2.1f", defaultValue.getValue()));
+            defaultSpeedPref.setSummary(defaultValue.toString());
+
+            defaultSpeedPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+                @Override
+                public boolean onPreferenceChange(Preference preference, Object newValue) {
+                    final Context context = getContext();
+                    try {
+                        final double speedValue = Double.parseDouble(newValue.toString());
+
+                        final SpeedUnitProvider sup = getSpeedUnitProvider();
+                        final SpeedUnit newSpeedValue = sup.boxTargetValue(speedValue);
+                        final double speedPrefValue = sup.fromTargetToBase(newSpeedValue).getValue();
+
+                        defaultSpeedPref.setText(String.format(Locale.US, "%2.1f", newSpeedValue.getValue()));
+                        defaultSpeedPref.setSummary(newSpeedValue.toString());
+
+                        dpPrefs.setVehicleDefaultSpeed((float) speedPrefValue);
+
+                    }catch(NumberFormatException e) {
+                        if (context != null) {
+                            Toast.makeText(context, R.string.warning_invalid_speed, Toast.LENGTH_LONG).show();
+                        }
+                    }
+                    return false;
+                }
+            });
+        }
     }
 
     @Override
@@ -512,7 +504,7 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                         }
                     } catch (NumberFormatException e) {
                         if(context != null){
-                            Toast.makeText(context, "Invalid altitude value: " + newValue, Toast.LENGTH_LONG).show();
+                            Toast.makeText(context, R.string.warning_invalid_altitude, Toast.LENGTH_LONG).show();
                         }
                     }
                     return false;
@@ -526,51 +518,9 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
         return unitSystem.getLengthUnitProvider();
     }
 
-    private void updateBluetoothDevicePreference(Preference preference, String deviceAddress){
-        if(TextUtils.isEmpty(deviceAddress)) {
-            preference.setEnabled(false);
-            preference.setTitle(R.string.pref_no_saved_bluetooth_device_title);
-            preference.setSummary("");
-        }
-        else{
-            preference.setEnabled(true);
-            preference.setSummary(deviceAddress);
-
-            final String deviceName = dpPrefs.getBluetoothDeviceName();
-            if(deviceName != null){
-                preference.setTitle(getString(R.string.pref_forget_bluetooth_device_title, deviceName));
-            }
-            else
-                preference.setTitle(getString(R.string.pref_forget_bluetooth_device_address));
-        }
-    }
-
-    private void updateConnectionPreferenceSummary(Preference preference, int connectionType) {
-        String connectionName;
-        switch (connectionType) {
-            case ConnectionType.TYPE_USB:
-                connectionName = "USB";
-                break;
-
-            case ConnectionType.TYPE_UDP:
-                connectionName = "UDP";
-                break;
-
-            case ConnectionType.TYPE_TCP:
-                connectionName = "TCP";
-                break;
-
-            case ConnectionType.TYPE_BLUETOOTH:
-                connectionName = "BLUETOOTH";
-                break;
-
-            default:
-                connectionName = null;
-                break;
-        }
-
-        if (connectionName != null)
-            preference.setSummary(connectionName);
+    private SpeedUnitProvider getSpeedUnitProvider() {
+        final UnitSystem unitSystem = UnitManager.getUnitSystem(getActivity().getApplicationContext());
+        return unitSystem.getSpeedUnitProvider();
     }
 
     private void initSummaryPerPrefs() {
@@ -639,8 +589,6 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
         final DPMapProvider mapProvider = DPMapProvider.getMapProvider(mapProviderName);
         if (mapProvider == null)
             return false;
-
-
 
         final Preference providerPrefs = findPreference(DroidPlannerPrefs.PREF_MAPS_PROVIDER_SETTINGS);
         if (providerPrefs != null) {
@@ -743,5 +691,49 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
     @Override
     public void onApiDisconnected() {
         lbm.unregisterReceiver(broadcastReceiver);
+    }
+
+    private void setupCreditsPage() {
+        Preference creatorPref = findPreference(DroidPlannerPrefs.PREF_PROJECT_CREATOR);
+        if(creatorPref != null) {
+            creatorPref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
+                    openWebUrl("https://github.com/arthurbenemann");
+                    return true;
+                }
+            });
+        }
+
+        Preference leadMaintainerPref = findPreference(DroidPlannerPrefs.PREF_PROJECT_LEAD_MAINTAINER);
+        if (leadMaintainerPref != null) {
+            leadMaintainerPref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
+                    openWebUrl("https://github.com/ne0fhyk");
+                    return true;
+                }
+            });
+        }
+
+        Preference contributorsPref = findPreference(DroidPlannerPrefs.PREF_PROJECT_CONTRIBUTORS);
+        if (contributorsPref != null) {
+            contributorsPref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
+                    openWebUrl("https://github.com/DroidPlanner/Tower/graphs/contributors");
+                    return true;
+                }
+            });
+        }
+    }
+
+    private void openWebUrl(String url) {
+        try {
+            Intent browseIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            startActivity(browseIntent);
+        }catch(ActivityNotFoundException e) {
+            Toast.makeText(getContext(), R.string.warning_unable_to_open_web_url, Toast.LENGTH_LONG).show();
+        }
     }
 }

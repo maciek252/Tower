@@ -1,5 +1,6 @@
 package org.droidplanner.android.fragments;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -32,10 +33,11 @@ import com.o3dr.services.android.lib.drone.property.Parameters;
 
 import org.droidplanner.android.R;
 import org.droidplanner.android.dialogs.SupportEditInputDialog;
-import org.droidplanner.android.dialogs.openfile.OpenFileDialog;
 import org.droidplanner.android.dialogs.openfile.OpenParameterDialog;
 import org.droidplanner.android.dialogs.parameters.DialogParameterInfo;
 import org.droidplanner.android.fragments.helpers.ApiListenerListFragment;
+import org.droidplanner.android.utils.file.DirectoryPath;
+import org.droidplanner.android.utils.file.FileList;
 import org.droidplanner.android.utils.file.FileStream;
 import org.droidplanner.android.utils.file.IO.ParameterWriter;
 import org.droidplanner.android.utils.prefs.DroidPlannerPrefs;
@@ -46,7 +48,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
 
-public class ParamsFragment extends ApiListenerListFragment implements SupportEditInputDialog.Listener {
+public class
+ParamsFragment extends ApiListenerListFragment implements
+    SupportEditInputDialog.Listener {
 
     public static final String ADAPTER_ITEMS = ParamsFragment.class.getName() + ".adapter.items";
     private static final String PREF_PARAMS_FILTER_ON = "pref_params_filter_on";
@@ -123,7 +127,7 @@ public class ParamsFragment extends ApiListenerListFragment implements SupportEd
 
         setHasOptionsMenu(true);
 
-        mPrefs = new DroidPlannerPrefs(getActivity().getApplicationContext());
+        mPrefs = DroidPlannerPrefs.getInstance(getActivity().getApplicationContext());
 
         // create adapter
         if (savedInstanceState != null) {
@@ -342,7 +346,7 @@ public class ParamsFragment extends ApiListenerListFragment implements SupportEd
 
         final int parametersCount = parametersList.size();
         if (parametersCount > 0) {
-            drone.writeParameters(new Parameters(parametersList));
+            VehicleApi.getApi(drone).writeParameters(new Parameters(parametersList));
             adapter.notifyDataSetChanged();
             Toast.makeText(getActivity(),
                     parametersCount + " " + getString(R.string.msg_parameters_written_to_drone),
@@ -352,19 +356,20 @@ public class ParamsFragment extends ApiListenerListFragment implements SupportEd
     }
 
     private void openParametersFromFile() {
-        OpenFileDialog dialog = new OpenParameterDialog() {
+        OpenParameterDialog dialog = new OpenParameterDialog() {
             @Override
-            public void parameterFileLoaded(List<Parameter> parameters) {
-                openedParamsFilename = getSelectedFilename();
+            public void parameterFileLoaded(String filepath, List<Parameter> parameters) {
+                openedParamsFilename = filepath;
                 loadAdapter(parameters, true);
             }
         };
-        dialog.openDialog(getActivity());
+        dialog.openDialog(getActivity(), DirectoryPath.getParametersPath(),
+                FileList.getParametersFileList());
     }
 
     private void saveParametersToFile() {
         final String defaultFilename = TextUtils.isEmpty(openedParamsFilename)
-                ? FileStream.getParameterFilename("Parameters-")
+                ? FileStream.getParameterFilename("Parameters")
                 : openedParamsFilename;
 
         final SupportEditInputDialog dialog = SupportEditInputDialog.newInstance(PARAMETERS_FILENAME_DIALOG_TAG,
@@ -416,7 +421,11 @@ public class ParamsFragment extends ApiListenerListFragment implements SupportEd
     }
 
     private void startProgress() {
-        progressDialog = new ProgressDialog(getActivity());
+        final Activity activity = getActivity();
+        if(activity == null)
+            return;
+
+        progressDialog = new ProgressDialog(activity);
         progressDialog.setTitle(R.string.refreshing_parameters);
         progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         progressDialog.setIndeterminate(true);

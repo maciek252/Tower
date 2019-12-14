@@ -35,7 +35,6 @@ abstract class BaseUVCVideoWidget : TowerWidget(){
         private fun initFilter(): IntentFilter {
             val temp = IntentFilter()
             temp.addAction(AttributeEvent.STATE_CONNECTED)
-            temp.addAction(AttributeEvent.STATE_ARMING)
             return temp
         }
 
@@ -139,7 +138,7 @@ abstract class BaseUVCVideoWidget : TowerWidget(){
 
 
     private val mOnDeviceConnectListener = object : USBMonitor.OnDeviceConnectListener {
-        override fun onAttach(device: UsbDevice) {
+        override fun onAttach(device: UsbDevice?) {
             if (DEBUG) Log.v(TAG, "onAttach:")
             startVideoStreaming()
         }
@@ -224,11 +223,11 @@ abstract class BaseUVCVideoWidget : TowerWidget(){
             //UVC Device Filter
             val uvcFilter = DeviceFilter.getDeviceFilters(activity, R.xml.uvc_device_filter)
             val uvcDevices = mUSBMonitor?.getDeviceList(uvcFilter[0])
-            if (uvcDevices == null || uvcDevices?.isEmpty()!!) {
+            if (uvcDevices == null || uvcDevices.isEmpty()) {
                 if (DEBUG) Log.v(TAG, getString(R.string.uvc_device_no_device))
             } else {
-                if (uvcDevices?.size()?.compareTo(1) == 0) {
-                    usbDevice = uvcDevices?.get(0);
+                if (uvcDevices.size.compareTo(1) == 0) {
+                    usbDevice = uvcDevices.get(0);
                     mUSBMonitor?.requestPermission(usbDevice)
                 } else {
                     UVCDialog.showDialog(activity, mUSBMonitor)

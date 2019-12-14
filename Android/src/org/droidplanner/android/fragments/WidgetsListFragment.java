@@ -20,7 +20,7 @@ import org.droidplanner.android.fragments.widget.TowerWidget;
 import org.droidplanner.android.fragments.widget.TowerWidgets;
 import org.droidplanner.android.utils.prefs.DroidPlannerPrefs;
 
-import timber.log.Timber;
+import java.util.List;
 
 public class WidgetsListFragment extends Fragment {
 
@@ -59,7 +59,7 @@ public class WidgetsListFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState){
         super.onViewCreated(view, savedInstanceState);
         widgetsContainer = (ViewGroup) view.findViewById(R.id.widgets_list_container);
-        dpPrefs = new DroidPlannerPrefs(getActivity().getApplicationContext());
+        dpPrefs = DroidPlannerPrefs.getInstance(getActivity().getApplicationContext());
     }
 
     @Override
@@ -100,7 +100,7 @@ public class WidgetsListFragment extends Fragment {
         if(widget == null)
             return;
 
-        if (!dpPrefs.isWidgetEnabled(widget)) {
+        if (!dpPrefs.isWidgetVisible(widget)) {
             removeWidget(widgetId);
             return;
         }
@@ -151,7 +151,7 @@ public class WidgetsListFragment extends Fragment {
         if (!isAdded())
             return;
 
-        final TowerWidgets[] towerWidgets = TowerWidgets.values();
+        final List<TowerWidgets> towerWidgets = TowerWidgets.enabledWidgets();
         for (TowerWidgets towerWidget : towerWidgets) {
             final @IdRes int widgetId = towerWidget.getIdRes();
             addWidget(widgetId);

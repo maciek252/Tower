@@ -50,7 +50,9 @@ public class NetworkUtils {
         final WifiManager wifiMgr = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
 
         final WifiInfo connectedWifi = wifiMgr.getConnectionInfo();
-        final String connectedSSID = connectedWifi == null ? null : connectedWifi.getSSID().replace("\"", "");
+        final String connectedSSID = connectedWifi == null || connectedWifi.getSSID() == null
+            ? null
+            : connectedWifi.getSSID().replace("\"", "");
         return connectedSSID;
     }
 
@@ -73,5 +75,9 @@ public class NetworkUtils {
         HttpURLConnection connection = new OkUrlFactory(client).open(url);
         connection.setRequestProperty("User-Agent", MapboxUtils.getUserAgent());
         return connection;
+    }
+
+    public static OkHttpClient getHttpClient() {
+        return new OkHttpClient();
     }
 }

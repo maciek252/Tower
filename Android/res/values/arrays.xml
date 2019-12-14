@@ -1,5 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<resources>
+<resources
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingTranslation">
 
     <!-- Do not change the names here, instead extract the strings -->
     <string-array name="RCQuickModes">
@@ -41,10 +43,19 @@
     <string-array name="TileProviders">
         <item>@string/pref_tile_provider_google</item>
         <item>@string/pref_tile_provider_mapbox</item>
+        <item>@string/pref_tile_provider_arcgis</item>
     </string-array>
     <string-array name="TileProviderValues">
         <item>google</item>
         <item>mapbox</item>
+        <item>arcgis</item>
+    </string-array>
+
+    <string-array name="ArcGisMapTypes">
+        <item>@string/label_nat_geo_world_map</item>
+        <item>@string/label_world_imagery</item>
+        <item>@string/label_world_street_map</item>
+        <item>@string/label_world_topo_map</item>
     </string-array>
 
     <string-array name="MapTypes">

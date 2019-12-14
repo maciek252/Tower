@@ -5,12 +5,15 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.view.View;
 import android.widget.Toast;
 
 import com.google.android.gms.location.LocationRequest;
 import com.o3dr.android.client.Drone;
+import com.o3dr.android.client.apis.FollowApi;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.gcs.follow.FollowState;
 import com.o3dr.services.android.lib.gcs.follow.FollowType;
@@ -20,6 +23,7 @@ import org.droidplanner.android.fragments.FlightDataFragment;
 import org.droidplanner.android.fragments.SettingsFragment;
 import org.droidplanner.android.fragments.helpers.ApiListenerFragment;
 import org.droidplanner.android.utils.location.CheckLocationSettings;
+import org.droidplanner.android.utils.prefs.DroidPlannerPrefs;
 
 /**
  * Created by Fredia Huya-Kouadio on 5/25/15.
@@ -77,7 +81,7 @@ public abstract class BaseFlightControlFragment extends ApiListenerFragment impl
 
         final FollowState followState = drone.getAttribute(AttributeType.FOLLOW_STATE);
         if (followState.isEnabled()) {
-            drone.disableFollowMe();
+            FollowApi.getApi(drone).disableFollowMe();
         } else {
             enableFollowMe(drone);
         }
@@ -97,7 +101,7 @@ public abstract class BaseFlightControlFragment extends ApiListenerFragment impl
                 new Runnable() {
                     @Override
                     public void run() {
-                        drone.enableFollowMe(FollowType.LEASH);
+                        FollowApi.getApi(drone).enableFollowMe(getAppPrefs().getLastKnownFollowType());
                     }
                 });
 

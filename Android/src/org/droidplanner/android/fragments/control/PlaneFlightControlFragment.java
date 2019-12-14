@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,20 +13,19 @@ import android.widget.Toast;
 
 import com.google.android.gms.analytics.HitBuilders;
 import com.o3dr.android.client.Drone;
+import com.o3dr.android.client.apis.ControlApi;
+import com.o3dr.android.client.apis.FollowApi;
+import com.o3dr.android.client.apis.VehicleApi;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEvent;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.drone.property.GuidedState;
 import com.o3dr.services.android.lib.drone.property.State;
 import com.o3dr.services.android.lib.drone.property.VehicleMode;
 import com.o3dr.services.android.lib.gcs.follow.FollowState;
-import com.o3dr.services.android.lib.gcs.follow.FollowType;
 
 import org.droidplanner.android.R;
 import org.droidplanner.android.activities.helpers.SuperUI;
 import org.droidplanner.android.dialogs.SlideToUnlockDialog;
-import org.droidplanner.android.dialogs.YesNoDialog;
-import org.droidplanner.android.dialogs.YesNoWithPrefsDialog;
-import org.droidplanner.android.fragments.helpers.ApiListenerFragment;
 import org.droidplanner.android.utils.analytics.GAUtils;
 
 /**
@@ -284,16 +282,12 @@ public class PlaneFlightControlFragment extends BaseFlightControlFragment {
     }
 
     private void getArmingConfirmation() {
-        SlideToUnlockDialog unlockDialog = new SlideToUnlockDialog() {
+        SlideToUnlockDialog unlockDialog = SlideToUnlockDialog.newInstance("arm", new Runnable() {
             @Override
-            public void onSliderUnlocked() {
-                getDrone().arm(true);
+            public void run() {
+                VehicleApi.getApi(getDrone()).arm(true);
             }
-        };
-
-        Bundle args = new Bundle();
-        args.putString(SlideToUnlockDialog.EXTRA_UNLOCK_ACTION, "arm");
-        unlockDialog.setArguments(args);
+        });
         unlockDialog.show(getChildFragmentManager(), "Slide To Arm");
     }
 
@@ -314,12 +308,12 @@ public class PlaneFlightControlFragment extends BaseFlightControlFragment {
                 break;
 
             case R.id.mc_disarmBtn:
-                getDrone().arm(false);
+                VehicleApi.getApi(drone).arm(false);
                 eventBuilder.setAction(ACTION_FLIGHT_ACTION_BUTTON).setLabel("Disarm");
                 break;
 
             case R.id.mc_homeBtn:
-                drone.changeVehicleMode(VehicleMode.PLANE_RTL);
+                VehicleApi.getApi(drone).setVehicleMode(VehicleMode.PLANE_RTL);
                 eventBuilder.setAction(ACTION_FLIGHT_ACTION_BUTTON)
                         .setLabel(VehicleMode.PLANE_RTL.getLabel());
                 break;
@@ -327,17 +321,17 @@ public class PlaneFlightControlFragment extends BaseFlightControlFragment {
             case R.id.mc_pause: {
                 final FollowState followState = drone.getAttribute(AttributeType.FOLLOW_STATE);
                 if (followState.isEnabled()) {
-                    drone.disableFollowMe();
+                    FollowApi.getApi(drone).disableFollowMe();
                 }
 
-                drone.pauseAtCurrentLocation();
+                ControlApi.getApi(drone).pauseAtCurrentLocation(null);
                 eventBuilder.setAction(ACTION_FLIGHT_ACTION_BUTTON).setLabel("Pause");
                 break;
             }
 
             case R.id.mc_TakeoffInAutoBtn:
             case R.id.mc_autoBtn:
-                drone.changeVehicleMode(VehicleMode.PLANE_AUTO);
+                VehicleApi.getApi(drone).setVehicleMode(VehicleMode.PLANE_AUTO);
                 eventBuilder.setAction(ACTION_FLIGHT_ACTION_BUTTON).setLabel(VehicleMode.PLANE_AUTO.getLabel());
                 break;
 

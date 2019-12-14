@@ -1,13 +1,16 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
 
+    <color name="transparent_dark">#90000000</color>
     <color name="transparent_light">#90ffffff</color>
     <color name="opaque_white">#fff</color>
     <color name="greyText">#5d5d5d</color>
+    <color name="grey">#5d5d5d</color>
     <color name="dark_grey">#9E9E9E</color>
     <color name="transparent_light_grey">#d0EFEFEF</color>
     <color name="light_grey">#EFEFEF</color>
     <color name="white">#fafafa</color>
+    <color name="white_pressed">#F2F2F2</color>
     <color name="white_grey">#f7f6f6</color>
     <color name="navigation_entry_color">#212121</color>
 
@@ -47,5 +50,15 @@
     <color name="very_dark_grey">#1C1C1C</color>
     <color name="medium_grey">#3C3C3C</color>
     <color name="grey700">#616161</color>
+
+    <color name="primary_dark">#388E3C</color>
+    <color name="primary_light">#C8E6C9</color>
+    <color name="accent">#795548</color>
+    <color name="primary_text">#212121</color>
+
+    <color name="primary_text_color">@color/light_grey</color>
+    <color name="secondary_text_color">@color/medium_grey</color>
+
+    <color name="dark_green">#009B12</color>
 
 </resources>

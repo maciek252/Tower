@@ -23,11 +23,13 @@ import timber.log.Timber
 class WidgetVideoPreferences : DialogFragment() {
 
     companion object {
-        @JvmStatic const val SOLO_VIDEO_TYPE = 0
-        @JvmStatic const val CUSTOM_VIDEO_TYPE = 1
+        const val SOLO_VIDEO_TYPE = 0
+        const val CUSTOM_VIDEO_TYPE = 1
     }
 
-    @IntDef(SOLO_VIDEO_TYPE.toLong(), CUSTOM_VIDEO_TYPE.toLong())
+    // MSz
+    //@IntDef(SOLO_VIDEO_TYPE.toLong(), CUSTOM_VIDEO_TYPE.toLong())
+    @IntDef(SOLO_VIDEO_TYPE.toInt(), CUSTOM_VIDEO_TYPE.toInt())
     @Retention(AnnotationRetention.SOURCE)
     annotation class VideoType
 
@@ -44,7 +46,7 @@ class WidgetVideoPreferences : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val context = activity.applicationContext
-        val appPrefs = DroidPlannerPrefs(context)
+        val appPrefs = DroidPlannerPrefs.getInstance(context)
 
         val udpPortView = view.findViewById(R.id.custom_video_provider_udp_port) as EditText?
 
@@ -93,7 +95,7 @@ class WidgetVideoPreferences : DialogFragment() {
 
                 R.id.custom_video_stream_check -> {
                     udpPortView?.isEnabled = true
-                    appPrefs.videoWidgetType = CUSTOM_VIDEO_TYPE
+                    appPrefs.videoWidgetType = CUSTOM_VIDEO_TYPE.toInt()
                 }
             }
         }
