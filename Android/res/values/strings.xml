@@ -532,7 +532,7 @@
     <string name="label_vertical_position">Vertical Position</string>
     <string name="label_absolute_predicted_estimate">Absolute predicted estimate</string>
     <string name="label_relative_predicted_estimate">Relative predicted estimate</string>
-    <string name="error_no_video">noo video available</string>
+    <string name="error_no_video">nop video available</string>
     <string name="label_repeat_indefinitely">Repeat indefinitely</string>
     <string name="title_ekf_status_viewer">EKF</string>
     <string name="title_vibration_viewer">Vibration</string>
